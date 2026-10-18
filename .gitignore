@@ -1,0 +1,24 @@
+# Environment Variables & Secrets
+.env
+*.env
+credentials.json
+token.json
+
+# SQLite Database & Runtime Logs
+agent.db
+agent.db-journal
+agent.log
+*.log
+
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.env/
+
+# OS Specific
+.DS_Store
+Thumbs.db
