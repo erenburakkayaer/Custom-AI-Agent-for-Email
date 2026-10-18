@@ -57,7 +57,7 @@ POLL_MINUTES = int(os.getenv("POLL_MINUTES", "10"))
 FOLLOWUP_AFTER_DAYS = float(os.getenv("FOLLOWUP_AFTER_DAYS", "3"))
 MAX_FOLLOWUPS = int(os.getenv("MAX_FOLLOWUPS", "2"))
 MAX_SENDS_PER_RUN = int(os.getenv("MAX_SENDS_PER_RUN", "10"))
-TRACK_CATEGORIES = csv_env("TRACK_CATEGORIES", "lead,meeting,toplanti")
+TRACK_CATEGORIES = csv_env("TRACK_CATEGORIES", "lead,meeting")
 AUTO_SEND_CATEGORIES = csv_env("AUTO_SEND_CATEGORIES", "")   # default: none
 BLOCKLIST = csv_env("BLOCKLIST", "")
 DB_PATH = os.getenv("DB_PATH", "agent.db")
@@ -242,8 +242,8 @@ def smtp_send(msg: MIMEText) -> None:
 
 # ======================= OLLAMA / LLM =======================
 class Analysis(BaseModel):
-    category: Literal["lead", "support", "meeting", "internal", "newsletter_spam", "other", "destek", "toplanti", "bulten_spam", "diger"]
-    priority: Literal["low", "medium", "high", "dusuk", "orta", "yuksek"]
+    category: Literal["lead", "support", "meeting", "internal", "newsletter_spam", "other"]
+    priority: Literal["low", "medium", "high"]
     needs_reply: bool
     summary: str
 
@@ -465,7 +465,7 @@ def cmd_scan() -> None:
 
             a = analyze(mail)
             log.info("[%s/%s] %s — %s", a.category, a.priority, mail["subject"], a.summary)
-            if a.category in {"newsletter_spam", "bulten_spam"} or not a.needs_reply:
+            if a.category == "newsletter_spam" or not a.needs_reply:
                 mark_processed(conn, mid)
                 continue
 
@@ -480,7 +480,7 @@ def cmd_scan() -> None:
             mark_processed(conn, mid)
             log.info("Draft #%d added to queue.", did)
 
-            if a.category in AUTO_SEND_CATEGORIES and a.priority not in {"high", "yuksek"}:
+            if a.category in AUTO_SEND_CATEGORIES and a.priority != "high":
                 row = conn.execute("SELECT * FROM drafts WHERE id=?", (did,)).fetchone()
                 send_draft(conn, row)
         except Exception:
@@ -565,16 +565,16 @@ def cmd_review() -> None:
                 print(f"\n{SIGNATURE}")
             print("-" * 64)
             c = input("[s]end  [e]dit  [k]skip  [q]uit > ").strip().lower()
-            if c in {"s", "g"}:
+            if c == "s":
                 if DRY_RUN:
                     print("DRY_RUN=true — set DRY_RUN=false in .env for actual sending.")
                 send_draft(conn, d)
                 break
-            elif c in {"e", "d"}:
+            elif c == "e":
                 d["body"] = read_multiline()
                 conn.execute("UPDATE drafts SET body=? WHERE id=?", (d["body"], d["id"]))
                 conn.commit()
-            elif c in {"k", "a"}:
+            elif c == "k":
                 conn.execute("UPDATE drafts SET status='skipped' WHERE id=?", (d["id"],))
                 if d["kind"] == "followup" and d["thread_id"]:
                     conn.execute("UPDATE threads SET status='closed' WHERE id=?", (d["thread_id"],))
